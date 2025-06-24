@@ -12,7 +12,7 @@ class PDFFormFillerTool(BaseTool):
     name: str = "UB-04 PDF Form Filler"
     description: str = "Fills a fillable UB-04 PDF form using a dictionary of claim data."
     args_schema: Type[BaseModel] = PDFFormFillerInput
-    template_path: str = r"c:\Users\user\Downloads\RAG_ai_agent\rag_agent\template\ub-40-.pdf"
+    template_path: str = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../template/ub-40-.pdf"))
     output_path: str = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../output/ub04_claim_filled.pdf"))   
 
     def _run(self, claim_data: Dict[Any, Any]) -> str:
