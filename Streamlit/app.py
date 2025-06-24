@@ -187,7 +187,7 @@ with tab2:
         # Clear the processed PDFs and reset the processing complete flag
         st.session_state.processed_pdfs = []
         st.session_state.processing_complete = False
-        st.experimental_rerun()
+        st.rerun()
     
     if batch_button and selected_patients:
         # Create a progress bar and status container
