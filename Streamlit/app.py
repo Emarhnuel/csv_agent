@@ -4,10 +4,8 @@ sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
 
 import streamlit as st
 import os
-import opik
 from pathlib import Path
 from dotenv import load_dotenv
-from opik.integrations.crewai import track_crewai
 import pandas as pd
 import time
 import shutil
@@ -22,10 +20,6 @@ sys.path.append(rag_agent_path)
 
 # Load environment variables from the rag_agent's .env file
 load_dotenv(dotenv_path=rag_agent_env_path)
-
-
-opik.configure(use_local=False)
-track_crewai(project_name="csv_agent")
 
 
 # Import from the agent bridge
