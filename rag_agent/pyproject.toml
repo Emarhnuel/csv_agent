@@ -9,7 +9,6 @@ dependencies = [
     "crewai[tools]>=0.130.0,<1.0.0",
     "fastembed>=0.7.1",
     "fpdf>=1.7.2",
-    "opik>=1.7.36",
     "pymupdf>=1.26.1",
 ]
  
