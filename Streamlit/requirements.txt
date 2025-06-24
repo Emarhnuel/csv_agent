@@ -5,3 +5,4 @@ streamlit
 fastembed
 fpdf
 pymupdf
+pysqlite3-binary
