@@ -1,20 +1,10 @@
 #!/usr/bin/env python
 import sys
-import opik
 from rag_agent.crew import UB04ClaimBuilderCrew
-from opik.integrations.crewai import track_crewai
 from dotenv import load_dotenv
 
 
 load_dotenv()
-
-opik.configure(use_local=False)
-
-
-
-track_crewai(project_name="csv_agent")
-
-
 
 
 # This main file is intended to be a way for you to run your
