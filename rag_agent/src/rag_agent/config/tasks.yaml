@@ -1,0 +1,83 @@
+gather_encounter_data:
+  description: >
+    Using only the csv_tool, search for the patient named {patient_name} in the ub04_claims.csv file.
+    The patient's full name is a combination of the 'PatientFirstName' and 'PatientLastName' columns.
+    Once the correct row is found, extract all relevant information for that patient.
+    Specifically, pull data from the following columns:
+    - Facility Info: 'FacilityName', 'FacilityAddress'
+    - Patient Info: 'PatientFirstName', 'PatientLastName', 'PatientDOB', 'PatientSex', 'MedicalRecordNumber'
+    - Visit Info: 'AdmissionDate', 'DischargeDate', 'PatientControlNumber'
+    - Payer Info: 'PrimaryPayerName', 'PrimaryPayerID'
+    - Billing Info: 'BillType', 'TotalCharge'
+    - Diagnoses: 'PrimaryDiagnosisCode', 'SecondaryDiagnosisCode1'
+    - Physician: 'AttendingPhysicianNPI'
+    - Revenue Lines: Consolidate 'RevenueCode1'/'HCPCSCode1'/'Units1'/'Charges1' and 'RevenueCode2'/'HCPCSCode2'/'Units2'/'Charges2' into a list of revenue lines.
+    Return the result as a single, comprehensive JSON object.
+  expected_output: |
+    A single JSON object containing all the extracted data for the specified patient, structured with clear keys for each data point. Example:
+    ```json
+    {
+      "FacilityName": "string",
+      "FacilityAddress": "string",
+      "PatientControlNumber": "string",
+      "MedicalRecordNumber": "string",
+      "BillType": "string",
+      "AdmissionDate": "string",
+      "DischargeDate": "string",
+      "PatientFirstName": "string",
+      "PatientLastName": "string",
+      "PatientDOB": "string",
+      "PatientSex": "string",
+      "PrimaryPayerName": "string",
+      "PrimaryPayerID": "string",
+      "PrimaryDiagnosisCode": "string",
+      "SecondaryDiagnosisCode1": "string",
+      "AttendingPhysicianNPI": "string",
+      "TotalCharge": 0.0,
+      "revenue_lines": [
+        {
+          "RevenueCode": "string",
+          "HCPCSCode": "string",
+          "Units": 0,
+          "Charge": 0.0
+        },
+        {
+          "RevenueCode": "string",
+          "HCPCSCode": "string",
+          "Units": 0,
+          "Charge": 0.0
+        }
+      ]
+    }
+    ```
+  agent: ehr_interface_specialist
+  
+
+# audit_claim:
+#   description: >
+#     Taking the JSON output from the 'gather_encounter_data' task, use the csv_tool to re-check the ub04_claims.csv file to ensure all information is correct and consistent.
+#     Verify all key data points, including Facility Info, Patient Info, Visit Info, Payer Info, Bill Type, Diagnoses, Revenue Lines, Total Charge, and Attending Physician NPI.
+#     If the data is valid and matches the source CSV, pass the original JSON object to the next step. If any discrepancies or issues are found, return a detailed error message.
+#   agent: compliance_auditor
+#   context:
+#     - gather_encounter_data
+#   expected_output: >
+#     The original, validated JSON object of the claim data if it is correct. 
+#     If there are discrepancies, give your own correct JSON object.
+#   guardrail: >
+#     You must meticulously compare every field from the input JSON with the data in the source CSV file.
+#     If any discrepancy is found, your final answer must be a JSON object with an 'error' key detailing every mismatch.
+#     Do not attempt to fix the data. If all data is correct, pass the original JSON object through.
+
+generate_pdf_task:
+  description: >
+    Take the final, audited JSON data from the 'gather_encounter_data' task and pass it directly to the `pdf_tool`.
+    The tool will use this data to fill a UB-04 PDF form with the claim information.
+    You MUST provide the entire, unmodified JSON object from the previous task as the 'claim_data' argument for the tool.
+    Do not attempt to modify, reformat, or interpret the data. Your only job is to call the tool with the correct argument.
+  expected_output: > 
+    The final answer MUST be a success message indicating the PDF was filled and saved to the output path.
+    Example: 'Successfully filled PDF (27 fields updated) and saved to 'output\ub04_claim_filled.pdf''
+  agent: reporting_agent
+  context:
+    - gather_encounter_data

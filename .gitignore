@@ -1,0 +1,10 @@
+.env
+__pycache__/
+.DS_Store
+.vscode
+memory
+db
+.venv
+memory/
+Streamlit/db/ 
+rag_agent/db/ 

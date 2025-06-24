@@ -1,0 +1,7 @@
+crewai-tools
+crewai[tools]
+opik
+streamlit
+fastembed
+fpdf
+pymupdf
