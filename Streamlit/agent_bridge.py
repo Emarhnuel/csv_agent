@@ -8,7 +8,7 @@ import time
 import shutil
 
 # Add the absolute path to the rag_agent's source directory
-project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__))) 
 rag_agent_path = os.path.join(project_root, "rag_agent", "src")
 rag_agent_env_path = os.path.join(project_root, "rag_agent", ".env")
 sys.path.append(rag_agent_path)
