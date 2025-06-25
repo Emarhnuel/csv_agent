@@ -65,5 +65,3 @@ def capture_output(container):
         yield string_io
     finally:
         sys.stdout = old_stdout
-
-
