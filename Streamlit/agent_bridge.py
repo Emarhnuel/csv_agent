@@ -20,6 +20,57 @@ load_dotenv(dotenv_path=rag_agent_env_path)
 from rag_agent.crew import UB04ClaimBuilderCrew
 from output_handler import capture_output
 
+# Define which task types should be shown in the UI logs
+IMPORTANT_TASK_TYPES = [
+    "extract",
+    "analyze",
+    "generate",
+    "verify",
+    "review",
+    "complete"
+]
+
+# Define key milestone messages to highlight
+MILESTONE_MARKERS = [
+    "extracting patient data",
+    "analyzing claim",
+    "generating form",
+    "validating data",
+    "reviewing claim",
+    "completed"
+]
+
+class MinimalLogFilter:
+    """Filter class that only allows important logs to pass through."""
+    
+    def __init__(self, output_container):
+        self.output_container = output_container
+        self.milestones_shown = set()
+    
+    def write_milestone(self, message, emoji="✨"):
+        """Write an important milestone message to the output with emoji."""
+        if message not in self.milestones_shown:
+            self.output_container.write(f"{emoji} {message}")
+            self.milestones_shown.add(message)
+    
+    def track_progress(self, message):
+        """Track progress based on keywords in message."""
+        msg_lower = message.lower()
+        
+        # Check for milestone keywords and add appropriate emoji
+        if "extracting" in msg_lower or "extract" in msg_lower:
+            self.write_milestone("Extracting patient data...", "🔎")
+        elif "analyzing" in msg_lower or "analyze" in msg_lower:
+            self.write_milestone("Analyzing claim information...", "📊")
+        elif "generate" in msg_lower or "creating" in msg_lower or "filling" in msg_lower:
+            self.write_milestone("Generating UB-04 form...", "📝")
+        elif "validat" in msg_lower or "verify" in msg_lower:
+            self.write_milestone("Validating claim data...", "✓")
+        elif "review" in msg_lower:
+            self.write_milestone("Reviewing final claim...", "📋")
+        elif "complet" in msg_lower or "finish" in msg_lower or "done" in msg_lower:
+            self.write_milestone("Processing complete", "✅")
+
 def get_available_patients():
     """
     Get a list of all patient names in the CSV file.
@@ -55,11 +106,24 @@ def run_claim_builder_crew(patient_name: str, output_container=None):
     # Initialize a new crew instance each time to avoid state conflicts
     crew = UB04ClaimBuilderCrew()
 
-    # Run with or without output capturing
+    # When running with streamlit output container, use reduced logging
     if output_container:
+        # Create a logger filter
+        log_filter = MinimalLogFilter(output_container)
+        
+        # Display starting milestone
+        log_filter.write_milestone(f"🔍 Processing UB-04 claim for patient: {patient_name}", "🔍")
+        
+        # Run with output capturing and reduced verbosity
         with capture_output(output_container):
+            # We're not using callbacks as they're not supported
+            # Instead, we rely on the StreamlitProcessOutput filtering
             result = crew.crew().kickoff(inputs=inputs)
+            
+        # Add completion message
+        log_filter.write_milestone(f"✅ Claim processing complete for {patient_name}", "✅")
     else:
+        # Run with standard output (for console/debugging)
         result = crew.crew().kickoff(inputs=inputs)
 
     # Return the result
@@ -78,19 +142,26 @@ def process_multiple_patients(patients, progress_callback=None, status_callback=
         List of dictionaries with processing results for each patient
     """
     results = []
+    total_patients = len(patients)
     
     # Ensure the output directory exists for copied PDFs
     output_dir = os.path.join(project_root, "rag_agent", "src", "output")
     os.makedirs(output_dir, exist_ok=True)
     
+    # Setup overall batch processing container if status_callback is available
+    if status_callback:
+        status_callback(f"🚀 Starting batch processing for {total_patients} patients")
+    
     for i, patient in enumerate(patients):
         # Update progress
+        current_progress = i / total_patients
         if progress_callback:
-            progress_callback(i / len(patients))
+            progress_callback(current_progress)
         
-        # Update status
+        # Update status with patient number and percentage
+        percent_complete = int(current_progress * 100)
         if status_callback:
-            status_callback(f"Processing {i+1}/{len(patients)}: {patient}")
+            status_callback(f"⏳ Processing patient {i+1}/{total_patients} ({percent_complete}%): {patient}")
         
         try:
             # Run the crew for this patient
@@ -100,25 +171,28 @@ def process_multiple_patients(patients, progress_callback=None, status_callback=
             report_path = get_pdf_report_path()
             
             if report_path and report_path.exists():
-                # Create a unique filename for this patient
+                # Make a copy with unique name
                 safe_name = patient.replace(" ", "_").lower()
-                patient_pdf_path = os.path.join(output_dir, f"ub04_claim_{safe_name}.pdf")
+                copy_path = os.path.join(output_dir, f"ub04_claim_{safe_name}.pdf")
                 
-                # Copy the PDF to the new path but ensure original is fully written
-                time.sleep(1)  # Brief pause to ensure PDF is fully written
-                shutil.copy2(report_path, patient_pdf_path)
+                # Copy the file
+                shutil.copy2(report_path, copy_path)
                 
-                # Read the PDF content
-                with open(patient_pdf_path, "rb") as file:
+                # Read the PDF content for the user to download
+                with open(copy_path, "rb") as file:
                     pdf_content = file.read()
                 
-                # Store success
+                # Add to results with success message
                 results.append({
                     "patient": patient,
-                    "path": patient_pdf_path,
+                    "path": copy_path,
                     "content": pdf_content,
                     "success": True
                 })
+                
+                # Update status with success message
+                if status_callback:
+                    status_callback(f"✅ Successfully processed claim for {patient}")
             else:
                 # Record failure
                 results.append({
@@ -127,10 +201,10 @@ def process_multiple_patients(patients, progress_callback=None, status_callback=
                     "error": "PDF not generated"
                 })
                 
-            # Brief pause between patients to avoid conflicts
-            if i < len(patients) - 1:
-                time.sleep(2)
-                
+                # Update status with failure message
+                if status_callback:
+                    status_callback(f"❌ Failed to generate PDF for {patient}")
+                    
         except Exception as e:
             # Record error
             results.append({
@@ -138,12 +212,24 @@ def process_multiple_patients(patients, progress_callback=None, status_callback=
                 "success": False,
                 "error": str(e)
             })
+            
+            # Update status with error message
+            if status_callback:
+                status_callback(f"❌ Error processing {patient}: {str(e)}")
+            
+        # Brief pause between patients
+        if i < total_patients - 1:
+            time.sleep(1)
     
-    # Update final progress
+    # Update progress to complete
     if progress_callback:
         progress_callback(1.0)
     
-    # Return all results
+    # Final status update
+    if status_callback:
+        status_callback(f"✅ Batch processing complete! Processed {total_patients} patients.")
+    
+    # Return the results
     return results
 
 def get_pdf_report_path():
@@ -153,10 +239,10 @@ def get_pdf_report_path():
     Returns:
         Path: The path to the PDF report, or None if not found.
     """
-    # Look in the output directory inside the rag_agent src directory
-    report_path = Path(os.path.join(project_root, "rag_agent", "src", "output", "ub04_claim_filled.pdf"))
+    # Path to the PDF report in the rag_agent's output directory
+    pdf_path = Path(os.path.join(project_root, "rag_agent", "src", "output", "ub04_claim_filled.pdf"))
     
-    if report_path.exists():
-        return report_path
+    if pdf_path.exists():
+        return pdf_path
     else:
         return None
