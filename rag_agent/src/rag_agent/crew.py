@@ -82,7 +82,7 @@ class UB04ClaimBuilderCrew():
             tools=[csv_tool], 
             max_rpm=30,
             max_iter=4,
-            llm=llm3
+            llm=llm
         )
     
     @agent
@@ -93,7 +93,7 @@ class UB04ClaimBuilderCrew():
             tools=[pdf_tool],  
             max_rpm=40,
             max_iter=4,
-            llm=llm3
+            llm=llm
         ) 
 
     # ---------------- Tasks ---------------- #
